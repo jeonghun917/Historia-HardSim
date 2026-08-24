@@ -41,16 +41,27 @@ if (!llamaRoot) {
 }
 
 const llamaAndroid = resolve(llamaRoot, "examples/llama.android");
-if (!(await exists(resolve(llamaAndroid, "lib/build.gradle.kts")))) {
+const llamaLibBuild = resolve(llamaAndroid, "lib/build.gradle.kts");
+if (!(await exists(llamaLibBuild))) {
   console.error("llama.cpp checkout does not contain examples/llama.android/lib.");
   process.exit(2);
 }
 
+// Historia HardSim's embedded APK is an Android-phone target. Upstream's sample
+// library builds both arm64-v8a and x86_64 by default; building only arm64 keeps
+// CI and APK size bounded without changing upstream source in the repository.
+let llamaBuildSource = await readFile(llamaLibBuild, "utf8");
+llamaBuildSource = llamaBuildSource.replace(
+  /abiFilters\s*\+=\s*listOf\("arm64-v8a",\s*"x86_64"\)/,
+  'abiFilters += listOf("arm64-v8a")',
+);
+await writeFile(llamaLibBuild, llamaBuildSource, "utf8");
+
 if (process.platform !== "win32") {
   run("chmod", ["+x", "gradlew"], llamaAndroid);
-  run("./gradlew", [":lib:assembleRelease"], llamaAndroid);
+  run("./gradlew", [":lib:assembleRelease", "--no-daemon"], llamaAndroid);
 } else {
-  run("gradlew.bat", [":lib:assembleRelease"], llamaAndroid);
+  run("gradlew.bat", [":lib:assembleRelease", "--no-daemon"], llamaAndroid);
 }
 
 const aarSource = resolve(llamaAndroid, "lib/build/outputs/aar/lib-release.aar");
@@ -129,5 +140,5 @@ if (!mainActivity.includes("registerPlugin(LocalLlmPlugin.class)")) {
 console.log("Embedded LocalLlm integration installed:");
 console.log(`  llama.cpp AAR: ${resolve(appLibs, "llama-android.aar")}`);
 console.log(`  Capacitor plugin: ${resolve(packageDir, "LocalLlmPlugin.kt")}`);
-console.log("  Android baseline: minSdk 33 / compileSdk 36 / targetSdk 36");
+console.log("  Android baseline: arm64-v8a / minSdk 33 / compileSdk 36 / targetSdk 36");
 console.log("The app can now download, load and run GGUF models without Termux.");
