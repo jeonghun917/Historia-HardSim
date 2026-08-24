@@ -18,11 +18,12 @@ Historia HardSim separates language generation from world-state authority. The s
 - choose arbitrary completion times;
 - directly mutate authoritative simulation state;
 - bypass the validator;
+- define project completion effects;
 - give NPCs abilities unavailable to the player under the same rules.
 
 ## 3. State split
 
-`SimulationState` is authoritative and contains resources, capacities, projects, technologies, territory and ledger entries.
+`SimulationState` is authoritative and contains resources, capacities, projects, technologies, territory, economy state and ledger entries.
 
 Presentation/game-specific state is produced through adapters. Open Historia integration should therefore consume a validated `WorldDiff` rather than expose its world state directly to the LLM.
 
@@ -48,7 +49,9 @@ Project / immediate action
         |
         v
 Simulation tick(s)
-        |
+  | project progress/completion
+  | rules-driven completion effects
+  | monthly economy update
         v
 WorldDiff + CausalLedger
         |
@@ -57,11 +60,18 @@ WorldDiff + CausalLedger
         +--> LLM narrator
 ```
 
-## 5. MVP capacities
+## 5. Stocks and capacities
 
-Each polity has explicit constrained capacities:
+The model distinguishes stocks from throughput constraints.
 
-- treasury / fiscal headroom;
+Examples of stock-like state:
+- treasury;
+- debt;
+- GDP;
+- industrial capital stock;
+- logistics network capacity.
+
+Hard-cap throughput includes:
 - labor;
 - industrial capacity;
 - energy;
@@ -85,7 +95,7 @@ The action can execute only up to a computable maximum scale. The validator may 
 Validation uses **currently unreserved capacity**, not headline capacity. An active project therefore prevents another project from reusing the same industrial, logistical, administrative, research, or other reserved throughput.
 
 ### Upfront stock consumption
-Projects may also specify resources that are permanently consumed when the project starts. These are distinct from reserved throughput. For example, treasury/material stock can be spent while industrial capacity remains occupied only for the project's lifetime.
+Projects may specify resources that are permanently consumed when the project starts. These are distinct from reserved throughput. Treasury/material stock can be spent while industrial capacity remains occupied only for the project's lifetime.
 
 ### Uncertainty
 Only after an action is valid may seeded randomness alter efficiency, completion time, discovery, failure, or other explicitly modeled uncertain outcomes.
@@ -93,7 +103,6 @@ Only after an action is valid may seeded randomness alter efficiency, completion
 ## 7. Projects
 
 Large actions become projects with:
-
 - start date;
 - duration and elapsed months;
 - executable scale;
@@ -105,15 +114,50 @@ Large actions become projects with:
 
 A time jump advances progress; it does not instantly materialize requested outcomes. Completed or cancelled projects stop reserving throughput automatically.
 
-## 8. Causal ledger
+Project completion effects are selected by the deterministic ruleset using `project.kind`. LLM metadata cannot award arbitrary capacity, GDP, technology, territory or resources.
 
-Every authoritative transition must be attributable. The current ledger records project creation, upfront resource consumption, monthly progress and completion. Future economic/industrial/logistics systems must append their own causal entries rather than silently mutating state.
+Current completion rules:
+- `industrial_expansion`: increases industrial throughput and industrial capital stock by validated project scale;
+- `infrastructure_expansion`: increases logistics throughput and logistics network capacity by validated project scale.
 
-## 9. Determinism
+## 8. Monthly economy model
+
+A polity may carry an explicit economy state:
+- GDP;
+- tax rate;
+- annual government program spending;
+- debt;
+- annual interest rate;
+- base annual GDP growth rate.
+
+Each monthly tick computes:
+1. currently available industrial and logistics throughput after active-project reservations;
+2. a bottleneck factor from those available capacities versus productive/network stock;
+3. effective GDP growth from base growth multiplied by the bottleneck factor;
+4. tax revenue, program spending and debt interest;
+5. fiscal balance;
+6. treasury change;
+7. automatic debt issuance only when the treasury would otherwise fall below zero.
+
+This deliberately couples large state projects to opportunity cost: reserving a large share of industrial or logistics throughput can suppress economic growth until the project completes.
+
+## 9. Causal ledger
+
+Every authoritative transition must be attributable. Ledger entries are appended in causal order during the tick rather than accumulated with ambiguous ordering.
+
+Current ledger types cover:
+- project creation;
+- upfront resource consumption;
+- project progress;
+- project completion;
+- rules-driven system effects;
+- monthly economy updates.
+
+## 10. Determinism
 
 Given identical initial state, action sequence, ruleset version and RNG seed, the simulation must produce identical authoritative results.
 
-## 10. Open Historia integration boundary
+## 11. Open Historia integration boundary
 
 The integration adapter should be one-way at first:
 
@@ -121,7 +165,7 @@ The integration adapter should be one-way at first:
 
 Open Historia or an LLM should never directly write authoritative HardSim state.
 
-## 11. Current module layout
+## 12. Current module layout
 
 ```text
 src/sim/
@@ -135,16 +179,17 @@ src/sim/
   projects/
     capacityAccounting.ts
     planner.ts
-  state/
   systems/
+    economy.ts
+    projectEffects.ts
+  state/
   ai/
   adapters/
 ```
 
-## 12. Milestone status
+## 13. Milestone status
 
-Implemented in the initial simulation-core milestone:
-
+Implemented:
 - typed Action DSL;
 - hard prerequisite validation;
 - partial execution by feasible scale;
@@ -154,6 +199,15 @@ Implemented in the initial simulation-core milestone:
 - monthly simulation ticks;
 - automatic reservation release on completion;
 - causal ledger;
+- deterministic fiscal flow and debt issuance;
+- industrial/logistics bottlenecks on growth;
+- rules-driven industrial and infrastructure completion effects;
 - tests and CI.
 
-The next milestone is the first rules-driven world model: economy/budget, industrial capacity and logistics. Completion effects must come from those rulesets, not arbitrary LLM-provided metadata.
+Next milestone:
+- explicit policy actions that modify taxes/spending rather than raw metadata;
+- energy/material supply systems;
+- demography/labor;
+- technology progression;
+- richer industrial/logistics production functions;
+- only then the Open Historia adapter.
