@@ -49,4 +49,4 @@ Player command
 
 Current bootstrap branch: `feat/sim-core`.
 
-See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) and [`docs/OPEN_HISTORIA_INTEGRATION.md`](docs/OPEN_HISTORIA_INTEGRATION.md).
