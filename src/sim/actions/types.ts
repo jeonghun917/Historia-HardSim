@@ -3,6 +3,8 @@ import type { CapacityPool, PolityId } from "../core/types";
 export type ActionKind =
   | "industrial_expansion"
   | "infrastructure_expansion"
+  | "energy_expansion"
+  | "materials_expansion"
   | "research_program"
   | "fiscal_policy"
   | "generic_project";
