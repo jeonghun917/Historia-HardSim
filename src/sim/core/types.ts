@@ -73,6 +73,25 @@ export interface RegionState {
   strategicValue?: number;
 }
 
+export interface DiplomaticRelationState {
+  counterpart: PolityId;
+  trust: number;
+  tension: number;
+  tradeDependence: number;
+  treatyCommitment: number;
+  contactLevel: number;
+}
+
+export interface FrontState {
+  id: string;
+  attacker: PolityId;
+  defender: PolityId;
+  regionIds: RegionId[];
+  pressure: number;
+  supplyFactor: number;
+  stability: number;
+}
+
 export interface PolityState {
   id: PolityId;
   capacities: CapacityPool;
@@ -85,6 +104,7 @@ export interface PolityState {
   demography?: DemographyState;
   researchState?: ResearchState;
   military?: MilitaryState;
+  diplomacy?: Record<PolityId, DiplomaticRelationState>;
 }
 
 export interface ProjectState {
@@ -120,6 +140,8 @@ export interface LedgerEntry {
     | "mobilization_changed"
     | "combat_resolved"
     | "territory_changed"
+    | "diplomacy_changed"
+    | "front_updated"
     | "policy_changed"
     | "technology_unlocked"
     | "system_effect";
@@ -136,6 +158,7 @@ export interface SimulationState {
   polities: Record<PolityId, PolityState>;
   projects: Record<ProjectId, ProjectState>;
   regions?: Record<RegionId, RegionState>;
+  fronts?: Record<string, FrontState>;
   ledger?: LedgerEntry[];
 }
 
