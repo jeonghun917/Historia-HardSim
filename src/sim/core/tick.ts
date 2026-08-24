@@ -1,5 +1,7 @@
 import { appendLedgerEntries, makeLedgerEntry } from "./ledger";
-import type { LedgerEntry, ProjectState, SimulationState, WorldDiff } from "./types";
+import type { CapacityPool, LedgerEntry, PolityId, ProjectState, SimulationState, WorldDiff } from "./types";
+import { tickEconomy } from "../systems/economy";
+import { applyProjectCompletionEffect } from "../systems/projectEffects";
 
 function addOneMonth(isoDate: string): string {
   const date = new Date(`${isoDate}T00:00:00.000Z`);
@@ -13,12 +15,27 @@ export interface TickResult {
   diff: WorldDiff;
 }
 
+function addCapacityDelta(
+  aggregate: Record<PolityId, Partial<CapacityPool>>,
+  actor: PolityId,
+  delta: Partial<CapacityPool>,
+): void {
+  const target = aggregate[actor] ?? {};
+  for (const [key, value] of Object.entries(delta)) {
+    const capacity = key as keyof CapacityPool;
+    target[capacity] = (target[capacity] ?? 0) + (value ?? 0);
+  }
+  aggregate[actor] = target;
+}
+
 export function tickMonth(state: SimulationState): TickResult {
   const nextDate = addOneMonth(state.date);
   const projectUpserts: ProjectState[] = [];
   const ledgerEntries: LedgerEntry[] = [];
-  let workingState: SimulationState = { ...state, date: nextDate };
+  const events: string[] = [];
+  const polityCapacityDelta: Record<PolityId, Partial<CapacityPool>> = {};
   const projects = { ...state.projects };
+  let workingState: SimulationState = { ...state, date: nextDate, projects };
 
   for (const project of Object.values(state.projects)) {
     if (project.status !== "active") continue;
@@ -34,46 +51,57 @@ export function tickMonth(state: SimulationState): TickResult {
     };
 
     projects[project.id] = updated;
+    workingState = { ...workingState, projects: { ...projects } };
     projectUpserts.push(updated);
 
-    const progressEntry = makeLedgerEntry(
-      { ...workingState, ledger: [...(workingState.ledger ?? []), ...ledgerEntries] },
-      {
-        type: "project_progress",
-        actor: project.owner,
-        projectId: project.id,
-        reason: `Project advanced to ${(progress * 100).toFixed(2)}%.`,
-        data: { elapsedMonths, durationMonths: project.durationMonths, progress },
-      },
-    );
+    const progressEntry = makeLedgerEntry(workingState, {
+      type: "project_progress",
+      actor: project.owner,
+      projectId: project.id,
+      reason: `Project advanced to ${(progress * 100).toFixed(2)}%.`,
+      data: { elapsedMonths, durationMonths: project.durationMonths, progress },
+    });
+    workingState = appendLedgerEntries(workingState, [progressEntry]);
     ledgerEntries.push(progressEntry);
 
-    if (completed) {
-      ledgerEntries.push(makeLedgerEntry(
-        { ...workingState, ledger: [...(workingState.ledger ?? []), ...ledgerEntries] },
-        {
-          type: "project_completed",
-          actor: project.owner,
-          projectId: project.id,
-          reason: `Project ${project.id} completed. Reserved capacities are released.`,
-          data: { scale: project.scale, kind: project.kind },
-        },
-      ));
+    if (!completed) continue;
+
+    const completedEntry = makeLedgerEntry(workingState, {
+      type: "project_completed",
+      actor: project.owner,
+      projectId: project.id,
+      reason: `Project ${project.id} completed. Reserved capacities are released.`,
+      data: { scale: project.scale, kind: project.kind },
+    });
+    workingState = appendLedgerEntries(workingState, [completedEntry]);
+    ledgerEntries.push(completedEntry);
+    events.push(completedEntry.reason);
+
+    const effect = applyProjectCompletionEffect(workingState, updated);
+    workingState = effect.state;
+    if (effect.capacityDelta) addCapacityDelta(polityCapacityDelta, project.owner, effect.capacityDelta);
+    if (effect.ledgerEntry) {
+      workingState = appendLedgerEntries(workingState, [effect.ledgerEntry]);
+      ledgerEntries.push(effect.ledgerEntry);
+      events.push(effect.ledgerEntry.reason);
     }
   }
 
-  workingState = { ...workingState, projects };
-  workingState = appendLedgerEntries(workingState, ledgerEntries);
+  const economyResult = tickEconomy(workingState);
+  workingState = appendLedgerEntries(economyResult.state, economyResult.ledgerEntries);
+  ledgerEntries.push(...economyResult.ledgerEntries);
+  for (const [actor, delta] of Object.entries(economyResult.polityCapacityDelta)) {
+    addCapacityDelta(polityCapacityDelta, actor, delta);
+  }
 
   return {
     state: workingState,
     diff: {
       reason: `Simulation advanced one month to ${nextDate}.`,
+      polityCapacityDelta: Object.keys(polityCapacityDelta).length > 0 ? polityCapacityDelta : undefined,
       projectUpserts,
       ledgerEntries,
-      events: ledgerEntries
-        .filter((entry) => entry.type === "project_completed")
-        .map((entry) => entry.reason),
+      events,
     },
   };
 }
@@ -87,6 +115,7 @@ export function advanceMonths(state: SimulationState, months: number): TickResul
   const projectUpserts = new Map<string, ProjectState>();
   const ledgerEntries: LedgerEntry[] = [];
   const events: string[] = [];
+  const polityCapacityDelta: Record<PolityId, Partial<CapacityPool>> = {};
 
   for (let index = 0; index < months; index += 1) {
     const result = tickMonth(current);
@@ -94,12 +123,16 @@ export function advanceMonths(state: SimulationState, months: number): TickResul
     for (const project of result.diff.projectUpserts ?? []) projectUpserts.set(project.id, project);
     ledgerEntries.push(...(result.diff.ledgerEntries ?? []));
     events.push(...(result.diff.events ?? []));
+    for (const [actor, delta] of Object.entries(result.diff.polityCapacityDelta ?? {})) {
+      addCapacityDelta(polityCapacityDelta, actor, delta);
+    }
   }
 
   return {
     state: current,
     diff: {
       reason: `Simulation advanced ${months} month(s) to ${current.date}.`,
+      polityCapacityDelta: Object.keys(polityCapacityDelta).length > 0 ? polityCapacityDelta : undefined,
       projectUpserts: [...projectUpserts.values()],
       ledgerEntries,
       events,
