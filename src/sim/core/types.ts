@@ -14,11 +14,33 @@ export interface CapacityPool {
   politicalCapital: number;
 }
 
+export interface EconomyState {
+  gdp: number;
+  taxRate: number;
+  governmentSpendingAnnual: number;
+  debt: number;
+  annualInterestRate: number;
+  baseAnnualGrowthRate: number;
+}
+
+export interface IndustryState {
+  capitalStock: number;
+  utilization: number;
+}
+
+export interface LogisticsState {
+  networkCapacity: number;
+  utilization: number;
+}
+
 export interface PolityState {
   id: PolityId;
   capacities: CapacityPool;
   technologies: string[];
   controlledRegions: RegionId[];
+  economy?: EconomyState;
+  industryState?: IndustryState;
+  logisticsState?: LogisticsState;
 }
 
 export interface ProjectState {
@@ -40,7 +62,14 @@ export interface ProjectState {
 export interface LedgerEntry {
   id: string;
   at: string;
-  type: "project_created" | "project_progress" | "project_completed" | "resource_consumed" | "project_blocked";
+  type:
+    | "project_created"
+    | "project_progress"
+    | "project_completed"
+    | "resource_consumed"
+    | "project_blocked"
+    | "economy_tick"
+    | "system_effect";
   actor: PolityId;
   projectId?: ProjectId;
   reason: string;
