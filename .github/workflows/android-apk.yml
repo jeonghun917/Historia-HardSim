@@ -1,0 +1,69 @@
+name: Android APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, "feat/**"]
+    paths:
+      - "src/**"
+      - "integrations/open-historia/**"
+      - "scripts/integrate-open-historia.mjs"
+      - "android/**"
+      - ".github/workflows/android-apk.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "integrations/open-historia/**"
+      - "scripts/integrate-open-historia.mjs"
+      - "android/**"
+      - ".github/workflows/android-apk.yml"
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Historia HardSim
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Install HardSim dependencies
+        run: npm install
+
+      - name: Checkout Open Historia
+        run: git clone --depth 1 https://github.com/Open-Historia/open-historia.git open-historia
+
+      - name: Integrate HardSim
+        run: node scripts/integrate-open-historia.mjs ./open-historia
+
+      - name: Verify integrated web build
+        working-directory: open-historia
+        run: |
+          npm install
+          npm run build
+
+      - name: Build Android APK
+        working-directory: open-historia/mobile
+        run: |
+          npm install
+          npx cap sync android
+          chmod +x android/gradlew
+          cd android
+          ./gradlew assembleDebug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: historia-hardsim-android-debug
+          path: open-historia/mobile/android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error

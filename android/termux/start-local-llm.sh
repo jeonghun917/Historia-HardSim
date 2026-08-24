@@ -1,0 +1,16 @@
+#!/data/data/com.termux/files/usr/bin/bash
+set -euo pipefail
+
+: "${HARDSIM_MODEL:?Set HARDSIM_MODEL to a local GGUF model path.}"
+LLAMA_SERVER_BIN="${LLAMA_SERVER_BIN:-llama-server}"
+HARDSIM_LLM_HOST="${HARDSIM_LLM_HOST:-127.0.0.1}"
+HARDSIM_LLM_PORT="${HARDSIM_LLM_PORT:-11434}"
+HARDSIM_CONTEXT="${HARDSIM_CONTEXT:-4096}"
+HARDSIM_THREADS="${HARDSIM_THREADS:-4}"
+
+exec "$LLAMA_SERVER_BIN" \
+  -m "$HARDSIM_MODEL" \
+  --host "$HARDSIM_LLM_HOST" \
+  --port "$HARDSIM_LLM_PORT" \
+  -c "$HARDSIM_CONTEXT" \
+  -t "$HARDSIM_THREADS"
