@@ -53,6 +53,18 @@ export interface ResearchState {
   monthlyKnowledgeGain: number;
 }
 
+export interface MilitaryState {
+  activePersonnel: number;
+  reservePersonnel: number;
+  mobilizedPersonnel: number;
+  equipmentPoints: number;
+  readiness: number;
+  training: number;
+  supplyStock: number;
+  monthlySupplyDemand: number;
+  mobilizationLimit: number;
+}
+
 export interface PolityState {
   id: PolityId;
   capacities: CapacityPool;
@@ -64,6 +76,7 @@ export interface PolityState {
   resources?: ResourceState;
   demography?: DemographyState;
   researchState?: ResearchState;
+  military?: MilitaryState;
 }
 
 export interface ProjectState {
@@ -95,6 +108,9 @@ export interface LedgerEntry {
     | "resource_tick"
     | "demography_tick"
     | "research_tick"
+    | "military_tick"
+    | "mobilization_changed"
+    | "combat_resolved"
     | "policy_changed"
     | "technology_unlocked"
     | "system_effect";
