@@ -1,6 +1,9 @@
 import { appendLedgerEntries, makeLedgerEntry } from "./ledger";
 import type { CapacityPool, LedgerEntry, PolityId, ProjectState, SimulationState, WorldDiff } from "./types";
 import { tickEconomy } from "../systems/economy";
+import { tickResources } from "../systems/resources";
+import { tickDemography } from "../systems/demography";
+import { tickResearch } from "../systems/research";
 import { applyProjectCompletionEffect } from "../systems/projectEffects";
 
 function addOneMonth(isoDate: string): string {
@@ -86,6 +89,24 @@ export function tickMonth(state: SimulationState): TickResult {
       events.push(effect.ledgerEntry.reason);
     }
   }
+
+  const resourceResult = tickResources(workingState);
+  workingState = appendLedgerEntries(resourceResult.state, resourceResult.ledgerEntries);
+  ledgerEntries.push(...resourceResult.ledgerEntries);
+  for (const [actor, delta] of Object.entries(resourceResult.polityCapacityDelta)) {
+    addCapacityDelta(polityCapacityDelta, actor, delta);
+  }
+
+  const demographyResult = tickDemography(workingState);
+  workingState = appendLedgerEntries(demographyResult.state, demographyResult.ledgerEntries);
+  ledgerEntries.push(...demographyResult.ledgerEntries);
+  for (const [actor, delta] of Object.entries(demographyResult.polityCapacityDelta)) {
+    addCapacityDelta(polityCapacityDelta, actor, delta);
+  }
+
+  const researchResult = tickResearch(workingState);
+  workingState = appendLedgerEntries(researchResult.state, researchResult.ledgerEntries);
+  ledgerEntries.push(...researchResult.ledgerEntries);
 
   const economyResult = tickEconomy(workingState);
   workingState = appendLedgerEntries(economyResult.state, economyResult.ledgerEntries);
