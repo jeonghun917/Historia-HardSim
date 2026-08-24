@@ -108,5 +108,56 @@ export function applyProjectCompletionEffect(
     return { state: nextState, ledgerEntry };
   }
 
+  if (project.kind === "military_equipment_production" && polity.military) {
+    const gain = project.scale;
+    const nextPolity = {
+      ...polity,
+      military: { ...polity.military, equipmentPoints: polity.military.equipmentPoints + gain },
+    };
+    const nextState = { ...state, polities: { ...state.polities, [project.owner]: nextPolity } };
+    const ledgerEntry = makeLedgerEntry(nextState, {
+      type: "system_effect",
+      actor: project.owner,
+      projectId: project.id,
+      reason: `Military production added ${gain} abstract equipment points.`,
+      data: { system: "military", equipmentPointsGain: gain },
+    });
+    return { state: nextState, ledgerEntry };
+  }
+
+  if (project.kind === "military_supply_production" && polity.military) {
+    const gain = project.scale;
+    const nextPolity = {
+      ...polity,
+      military: { ...polity.military, supplyStock: polity.military.supplyStock + gain },
+    };
+    const nextState = { ...state, polities: { ...state.polities, [project.owner]: nextPolity } };
+    const ledgerEntry = makeLedgerEntry(nextState, {
+      type: "system_effect",
+      actor: project.owner,
+      projectId: project.id,
+      reason: `Military supply production added ${gain} supply stock.`,
+      data: { system: "military", supplyStockGain: gain },
+    });
+    return { state: nextState, ledgerEntry };
+  }
+
+  if (project.kind === "military_training" && polity.military) {
+    const gain = Math.min(1 - polity.military.training, project.scale * 0.01);
+    const nextPolity = {
+      ...polity,
+      military: { ...polity.military, training: polity.military.training + gain },
+    };
+    const nextState = { ...state, polities: { ...state.polities, [project.owner]: nextPolity } };
+    const ledgerEntry = makeLedgerEntry(nextState, {
+      type: "system_effect",
+      actor: project.owner,
+      projectId: project.id,
+      reason: `Military training improved force training by ${gain.toFixed(3)}.`,
+      data: { system: "military", trainingGain: gain },
+    });
+    return { state: nextState, ledgerEntry };
+  }
+
   return { state };
 }
