@@ -34,7 +34,7 @@ await mkdir(vendorDir, { recursive: true });
 await mkdir(hardSimGameDir, { recursive: true });
 
 await cp(resolve(repoRoot, "dist"), vendorDir, { recursive: true, force: true });
-for (const file of ["runtime.js", "gameplayAdapter.js"]) {
+for (const file of ["runtime.js", "gameplayAdapter.js", "nativeModelManager.js"]) {
   await cp(
     resolve(repoRoot, `integrations/open-historia/src/Game/HardSim/${file}`),
     resolve(hardSimGameDir, file),
@@ -48,6 +48,7 @@ const oldImport = 'import { loadRollbackSnapshots, maybeGeneratePregameHistory, 
 const newImports = [
   'import { loadRollbackSnapshots, maybeGeneratePregameHistory, rollBackToSnapshot } from "../AI/gameplay.js";',
   'import { simulateAutoJump, simulateTimelineJump } from "../HardSim/gameplayAdapter.js";',
+  'import "../HardSim/nativeModelManager.js";',
 ].join("\n");
 
 if (!timeSource.includes('../HardSim/gameplayAdapter.js')) {
@@ -56,6 +57,12 @@ if (!timeSource.includes('../HardSim/gameplayAdapter.js')) {
     process.exit(3);
   }
   timeSource = timeSource.replace(oldImport, newImports);
+  await writeFile(timePath, timeSource, "utf8");
+} else if (!timeSource.includes('../HardSim/nativeModelManager.js')) {
+  timeSource = timeSource.replace(
+    'import { simulateAutoJump, simulateTimelineJump } from "../HardSim/gameplayAdapter.js";',
+    'import { simulateAutoJump, simulateTimelineJump } from "../HardSim/gameplayAdapter.js";\nimport "../HardSim/nativeModelManager.js";',
+  );
   await writeFile(timePath, timeSource, "utf8");
 }
 
