@@ -52,6 +52,16 @@ export function validateIntentEnvelope(value: unknown): IntentEnvelope {
     normalized.upfrontCost = action.upfrontCost as ActionRequest["upfrontCost"];
   }
 
+  if (normalized.kind === "fiscal_policy" && action.metadata && typeof action.metadata === "object") {
+    const metadata = action.metadata as Record<string, unknown>;
+    const safe: Record<string, unknown> = {};
+    if (typeof metadata.taxRate === "number" && Number.isFinite(metadata.taxRate)) safe.taxRate = metadata.taxRate;
+    if (typeof metadata.governmentSpendingAnnual === "number" && Number.isFinite(metadata.governmentSpendingAnnual)) {
+      safe.governmentSpendingAnnual = metadata.governmentSpendingAnnual;
+    }
+    normalized.metadata = safe;
+  }
+
   return {
     action: normalized,
     confidence: typeof raw.confidence === "number" ? Math.max(0, Math.min(1, raw.confidence)) : undefined,
@@ -70,6 +80,7 @@ export async function compileIntent(
       "Convert the player command into exactly one Historia HardSim action.",
       "Do not decide whether it succeeds.",
       "Do not invent state changes, outcomes, rewards, casualties, resources or completion effects.",
+      "For fiscal_policy, metadata may contain only taxRate and governmentSpendingAnnual.",
       `The actor is ${actor}.`,
     ].join(" "),
     user: playerCommand,
