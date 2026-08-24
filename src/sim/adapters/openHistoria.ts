@@ -1,4 +1,8 @@
 import {
+  applyCivilCalibration,
+  type CivilCalibrationDatum,
+} from "../calibration/civilData";
+import {
   calibratedPolity,
   inferEraProfile,
   scalePolityForRegions,
@@ -26,6 +30,7 @@ export interface OpenHistoriaWorldLike {
   hardSimSeed?: {
     profile?: EraProfileId;
     rngSeed?: number;
+    civilCalibration?: Record<string, CivilCalibrationDatum>;
     polities?: Record<string, Partial<PolityState>>;
   };
 }
@@ -68,21 +73,25 @@ export function bootstrapFromOpenHistoriaWorld(
   }
 
   const profileId = world.hardSimSeed?.profile ?? inferEraProfile(date);
-  const polities: SimulationState["polities"] = {};
+  let polities: SimulationState["polities"] = {};
   for (const owner of ownerCodes) {
-    const calibrated = scalePolityForRegions(calibratedPolity(owner, profileId), regionCounts[owner] ?? 1);
-    polities[owner] = mergeSeed(calibrated, world.hardSimSeed?.polities?.[owner]);
+    polities[owner] = scalePolityForRegions(
+      calibratedPolity(owner, profileId),
+      regionCounts[owner] ?? 1,
+    );
+  }
+
+  polities = applyCivilCalibration(polities, world.hardSimSeed?.civilCalibration);
+  for (const owner of ownerCodes) {
+    polities[owner] = mergeSeed(polities[owner], world.hardSimSeed?.polities?.[owner]);
   }
 
   const regions: Record<string, RegionState> = {};
   for (const [regionId, controller] of Object.entries(world.regionOwnershipOverrides ?? {})) {
     regions[regionId] = { id: regionId, controller };
-    const polity = polities[controller] ?? mergeSeed(
-      scalePolityForRegions(calibratedPolity(controller, profileId), regionCounts[controller] ?? 1),
-      world.hardSimSeed?.polities?.[controller],
-    );
+    const polity = polities[controller];
+    if (!polity) continue;
     if (!polity.controlledRegions.includes(regionId)) polity.controlledRegions.push(regionId);
-    polities[controller] = polity;
   }
 
   return {
