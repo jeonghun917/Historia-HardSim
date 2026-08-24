@@ -15,11 +15,12 @@ export function tickResources(state: SimulationState): ResourceTickResult {
   for (const [polityId, polity] of Object.entries(state.polities)) {
     if (!polity.resources) continue;
 
-    const energySurplus = polity.resources.energyProductionMonthly - polity.resources.energyDemandMonthly;
+    const energyAvailable = Math.max(0, polity.resources.energyProductionMonthly);
+    const energyShortfall = Math.max(0, polity.resources.energyDemandMonthly - energyAvailable);
     const materialFlow = polity.resources.materialProductionMonthly - polity.resources.materialDemandMonthly;
     const nextMaterialStock = Math.max(0, polity.resources.materialStock + materialFlow);
-    const nextEnergyCapacity = Math.max(0, polity.capacities.energy + energySurplus);
-    const nextMaterialCapacity = Math.max(0, nextMaterialStock);
+    const nextEnergyCapacity = energyAvailable;
+    const nextMaterialCapacity = nextMaterialStock;
 
     const nextPolity = {
       ...polity,
@@ -36,17 +37,18 @@ export function tickResources(state: SimulationState): ResourceTickResult {
       polities: { ...nextState.polities, [polityId]: nextPolity },
     };
 
-    const energyDelta = nextEnergyCapacity - polity.capacities.energy;
-    const materialsDelta = nextMaterialCapacity - polity.capacities.materials;
-    polityCapacityDelta[polityId] = { energy: energyDelta, materials: materialsDelta };
+    polityCapacityDelta[polityId] = {
+      energy: nextEnergyCapacity - polity.capacities.energy,
+      materials: nextMaterialCapacity - polity.capacities.materials,
+    };
 
     ledgerEntries.push(makeLedgerEntry(
       { ...nextState, ledger: [...(nextState.ledger ?? []), ...ledgerEntries] },
       {
         type: "resource_tick",
         actor: polityId,
-        reason: "Monthly energy and materials balance applied.",
-        data: { energySurplus, materialFlow, nextMaterialStock },
+        reason: "Monthly energy flow and materials stock balance applied.",
+        data: { energyAvailable, energyShortfall, materialFlow, nextMaterialStock },
       },
     ));
   }
