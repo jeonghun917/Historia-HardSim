@@ -75,6 +75,8 @@ jobs:
         run: |
           npm install
           npx cap sync android
+          sed -i 's/com.android.tools.build:gradle:8.7.2/com.android.tools.build:gradle:8.9.1/' android/build.gradle
+          grep -F 'com.android.tools.build:gradle:8.9.1' android/build.gradle
           chmod +x android/gradlew
           cd android
           ./gradlew assembleDebug
