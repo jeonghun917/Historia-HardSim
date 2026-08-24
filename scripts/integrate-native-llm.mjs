@@ -119,10 +119,10 @@ if (!appBuild.includes("llama-android.aar")) {
     ].join("\n"),
   );
 }
-if (!appBuild.includes("sourceCompatibility JavaVersion.VERSION_17")) {
+if (!appBuild.includes("sourceCompatibility JavaVersion.VERSION_21")) {
   appBuild = appBuild.replace(
     "buildTypes {",
-    "compileOptions {\n        sourceCompatibility JavaVersion.VERSION_17\n        targetCompatibility JavaVersion.VERSION_17\n    }\n    kotlinOptions {\n        jvmTarget = '17'\n    }\n    buildTypes {",
+    "compileOptions {\n        sourceCompatibility JavaVersion.VERSION_21\n        targetCompatibility JavaVersion.VERSION_21\n    }\n    kotlinOptions {\n        jvmTarget = '21'\n    }\n    buildTypes {",
   );
 }
 await writeFile(appBuildPath, appBuild, "utf8");
@@ -140,5 +140,5 @@ if (!mainActivity.includes("registerPlugin(LocalLlmPlugin.class)")) {
 console.log("Embedded LocalLlm integration installed:");
 console.log(`  llama.cpp AAR: ${resolve(appLibs, "llama-android.aar")}`);
 console.log(`  Capacitor plugin: ${resolve(packageDir, "LocalLlmPlugin.kt")}`);
-console.log("  Android baseline: arm64-v8a / minSdk 33 / compileSdk 36 / targetSdk 36");
+console.log("  Android baseline: arm64-v8a / minSdk 33 / compileSdk 36 / targetSdk 36 / JVM 21");
 console.log("The app can now download, load and run GGUF models without Termux.");
