@@ -1,4 +1,4 @@
-import { cp, mkdir, stat } from "node:fs/promises";
+import { cp, mkdir, stat, readFile, writeFile } from "node:fs/promises";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
@@ -21,7 +21,11 @@ if (!(await exists(resolve(target, "src/Game/AI/gameplay.js")))) {
   process.exit(2);
 }
 
-const build = spawnSync("npm", ["run", "build:lib"], { cwd: repoRoot, stdio: "inherit", shell: process.platform === "win32" });
+const build = spawnSync("npm", ["run", "build:lib"], {
+  cwd: repoRoot,
+  stdio: "inherit",
+  shell: process.platform === "win32",
+});
 if (build.status !== 0) process.exit(build.status ?? 1);
 
 const vendorDir = resolve(target, "src/vendor/hardsim");
@@ -30,13 +34,33 @@ await mkdir(vendorDir, { recursive: true });
 await mkdir(hardSimGameDir, { recursive: true });
 
 await cp(resolve(repoRoot, "dist"), vendorDir, { recursive: true, force: true });
-await cp(
-  resolve(repoRoot, "integrations/open-historia/src/Game/HardSim/runtime.js"),
-  resolve(hardSimGameDir, "runtime.js"),
-  { force: true },
-);
+for (const file of ["runtime.js", "gameplayAdapter.js"]) {
+  await cp(
+    resolve(repoRoot, `integrations/open-historia/src/Game/HardSim/${file}`),
+    resolve(hardSimGameDir, file),
+    { force: true },
+  );
+}
 
-console.log("Historia HardSim library installed into Open Historia:");
-console.log(`  ${vendorDir}`);
-console.log(`  ${resolve(hardSimGameDir, "runtime.js")}`);
-console.log("Next: wire createHardSimRuntime() at the structured turn boundary described in docs/OPEN_HISTORIA_INTEGRATION.md.");
+const timePath = resolve(target, "src/Game/GameUI/time.jsx");
+let timeSource = await readFile(timePath, "utf8");
+const oldImport = 'import { loadRollbackSnapshots, maybeGeneratePregameHistory, rollBackToSnapshot, simulateAutoJump, simulateTimelineJump } from "../AI/gameplay.js";';
+const newImports = [
+  'import { loadRollbackSnapshots, maybeGeneratePregameHistory, rollBackToSnapshot } from "../AI/gameplay.js";',
+  'import { simulateAutoJump, simulateTimelineJump } from "../HardSim/gameplayAdapter.js";',
+].join("\n");
+
+if (!timeSource.includes('../HardSim/gameplayAdapter.js')) {
+  if (!timeSource.includes(oldImport)) {
+    console.error("Open Historia time.jsx import changed upstream; refusing a blind patch.");
+    process.exit(3);
+  }
+  timeSource = timeSource.replace(oldImport, newImports);
+  await writeFile(timePath, timeSource, "utf8");
+}
+
+console.log("Historia HardSim integration installed:");
+console.log(`  library: ${vendorDir}`);
+console.log(`  runtime: ${hardSimGameDir}`);
+console.log(`  patched: ${timePath}`);
+console.log("Run the Open Historia test/build commands before committing the generated integration branch.");
