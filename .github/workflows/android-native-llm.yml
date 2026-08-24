@@ -21,6 +21,10 @@ on:
       - "scripts/integrate-open-historia.mjs"
       - ".github/workflows/android-native-llm.yml"
 
+concurrency:
+  group: android-native-llm-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build-native-apk:
     runs-on: ubuntu-latest
