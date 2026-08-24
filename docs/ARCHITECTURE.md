@@ -4,7 +4,7 @@
 Historia HardSim separates language generation from world-state authority. The simulation core is authoritative; LLM output is advisory until converted into a validated action.
 
 ## Authority boundary
-LLM may parse player intent, propose NPC goals, narrate computed outcomes, and summarize causal history. It may not mint resources, override prerequisites, choose arbitrary completion times, directly mutate authoritative state, bypass validation, or define project rewards.
+LLM may parse player intent, propose NPC goals, narrate computed outcomes, and summarize causal history. It may not mint resources, override prerequisites, choose arbitrary completion times, directly mutate authoritative state, bypass validation, define project rewards, or decide combat outcomes.
 
 ## Turn pipeline
 ```text
@@ -37,11 +37,26 @@ Population changes monthly from an annual growth rate. Working-age share and lab
 ### Research and technology
 Research capacity creates monthly knowledge accumulation. Research projects reserve research throughput and only unlock their target technology after deterministic project completion. Prerequisite technologies are enforced by the action validator.
 
+## Military world model
+Military state is intentionally abstract: active personnel, reserves, mobilized personnel, equipment points, readiness, training, supply stock and monthly supply demand.
+
+### Mobilization
+Mobilization is capped by three deterministic limits: remaining reserves, configured mobilization ceiling, and the amount of civilian labor that can be removed without crossing the protected labor floor. Mobilized manpower therefore reduces civilian labor capacity.
+
+### Military production
+Equipment, supply and training use the same project engine as civilian construction. They reserve industrial/logistics throughput, consume configured stock resources and only produce effects on project completion. Money alone cannot instantly create military capability.
+
+### Supply and readiness
+Each monthly military tick consumes supply subject to available logistics. Insufficient supply or logistics pushes readiness downward; training only partially offsets the constraint.
+
+### Combat
+Combat resolution reads only authoritative force state. Relative personnel, abstract equipment, readiness and training determine force power and deterministic attrition. The narrator cannot choose a winner or invent losses. Territory-transfer rules are intentionally deferred to a later campaign layer.
+
 ## Projects
 Large actions have duration, executable scale, reserved capacities, consumed upfront resources, progress and status. A time jump advances projects rather than materializing requested outcomes instantly. Completion effects are ruleset-owned.
 
 ## Causal ledger
-Every authoritative transition is attributable: project creation/progress/completion, resource consumption, economy/resource/demography/research ticks, policy changes, technology unlocks, and system effects all produce ledger entries.
+Every authoritative transition is attributable: project creation/progress/completion, resource consumption, economy/resource/demography/research/military ticks, mobilization, combat, policy changes, technology unlocks, and system effects all produce ledger entries.
 
 ## Determinism
 Given identical initial state, action sequence, ruleset version and RNG seed, the simulation must produce identical authoritative results.
@@ -70,12 +85,14 @@ src/sim/
     resources.ts
     demography.ts
     research.ts
+    military.ts
+    combat.ts
     projectEffects.ts
   adapters/
   ai/
 ```
 
 ## Milestone status
-Implemented: deterministic validation, partial execution, project reservations, upfront consumption, monthly project progression, economy/budget, fiscal policy, industrial/logistics expansion effects, energy/material supply, demography/labor, research/technology progression, causal ledger, tests and CI.
+Implemented: deterministic validation, partial execution, project reservations, upfront consumption, monthly project progression, economy/budget, fiscal policy, industrial/logistics expansion effects, energy/material supply, demography/labor, research/technology progression, abstract military production, mobilization, military supply/readiness and deterministic combat, causal ledger, tests and CI.
 
-Next major subsystem: military production, force structure, mobilization, logistics/supply and combat. Open Historia/local-LLM adapters follow after the military rules stabilize.
+Next major subsystem: Open Historia adapter plus constrained local/mobile LLM intent compilation and narration. A later campaign layer can add territory capture, fronts and diplomacy without changing the authority boundary.
