@@ -22,4 +22,6 @@ export * from "./sim/ai/narrator";
 export * from "./sim/ai/bridge";
 export * from "./sim/ai/npcPlanner";
 export * from "./sim/ai/openAiCompatibleClient";
+export * from "./sim/ai/capacitorLocalClient";
+export * from "./sim/calibration/profiles";
 export * from "./sim/adapters/openHistoria";
