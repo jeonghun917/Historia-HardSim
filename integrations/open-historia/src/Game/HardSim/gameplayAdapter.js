@@ -7,7 +7,7 @@ import {
   writeEventsState,
   writeGameData,
   writeWorldState,
-} from "../../../runtime/gameState.js";
+} from "../../runtime/gameState.js";
 import { createHardSimRuntime } from "./runtime.js";
 
 function addDays(isoDate, days) {
@@ -80,8 +80,6 @@ export const simulateTimelineJump = async ({ days, mode = "jump", signal } = {})
     ));
   }
 
-  // HardSim currently advances its slow-changing systems monthly. Preserve the
-  // exact Open Historia calendar date while advancing every complete 30-day block.
   const months = Math.floor(safeDays / 30);
   let jumpResult = null;
   if (months > 0) {
