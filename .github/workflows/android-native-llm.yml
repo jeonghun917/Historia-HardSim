@@ -64,13 +64,27 @@ jobs:
       - name: Integrate embedded llama.cpp runtime
         run: node scripts/integrate-native-llm.mjs ./open-historia
 
-      - name: Verify integrated web build
+      - name: Build standalone game client
         working-directory: open-historia
         run: |
           npm install
-          npm run build
+          npm run build:web
 
-      - name: Build embedded-runtime Android APK
+      - name: Replace thin mobile shell with standalone game
+        working-directory: open-historia
+        run: |
+          rm -rf mobile/www
+          mkdir -p mobile/www
+          cp -R dist-web/. mobile/www/
+          test -f mobile/www/index.html
+          if grep -R -F "This app connects to a running Open Historia server" mobile/www; then
+            echo "Thin-client shell is still present; refusing to build APK."
+            exit 1
+          fi
+          grep -R -F "VITE_OH_WEB" dist-web >/dev/null 2>&1 || true
+          echo "Standalone Open Historia web build staged in mobile/www"
+
+      - name: Build standalone embedded-runtime Android APK
         working-directory: open-historia/mobile
         run: |
           npm install
@@ -81,9 +95,9 @@ jobs:
           cd android
           ./gradlew assembleDebug
 
-      - name: Upload embedded-runtime APK
+      - name: Upload standalone embedded-runtime APK
         uses: actions/upload-artifact@v4
         with:
-          name: historia-hardsim-android-native-llm-debug
+          name: historia-hardsim-android-standalone-native-llm-debug
           path: open-historia/mobile/android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
