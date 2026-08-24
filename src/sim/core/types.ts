@@ -65,6 +65,14 @@ export interface MilitaryState {
   mobilizationLimit: number;
 }
 
+export interface RegionState {
+  id: RegionId;
+  controller: PolityId;
+  population?: number;
+  infrastructure?: number;
+  strategicValue?: number;
+}
+
 export interface PolityState {
   id: PolityId;
   capacities: CapacityPool;
@@ -111,6 +119,7 @@ export interface LedgerEntry {
     | "military_tick"
     | "mobilization_changed"
     | "combat_resolved"
+    | "territory_changed"
     | "policy_changed"
     | "technology_unlocked"
     | "system_effect";
@@ -126,6 +135,7 @@ export interface SimulationState {
   rulesetVersion: string;
   polities: Record<PolityId, PolityState>;
   projects: Record<ProjectId, ProjectState>;
+  regions?: Record<RegionId, RegionState>;
   ledger?: LedgerEntry[];
 }
 
