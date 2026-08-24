@@ -1,10 +1,11 @@
 import { makeLedgerEntry } from "../core/ledger";
-import type { LedgerEntry, SimulationState } from "../core/types";
+import type { CapacityPool, LedgerEntry, PolityId, SimulationState } from "../core/types";
 import { getAvailableCapacities } from "../projects/capacityAccounting";
 
 export interface EconomyTickResult {
   state: SimulationState;
   ledgerEntries: LedgerEntry[];
+  polityCapacityDelta: Record<PolityId, Partial<CapacityPool>>;
 }
 
 function clamp(value: number, min: number, max: number): number {
@@ -19,6 +20,7 @@ function monthlyRateFromAnnual(annualRate: number): number {
 export function tickEconomy(state: SimulationState): EconomyTickResult {
   let nextState = state;
   const ledgerEntries: LedgerEntry[] = [];
+  const polityCapacityDelta: Record<PolityId, Partial<CapacityPool>> = {};
 
   for (const [polityId, polity] of Object.entries(state.polities)) {
     if (!polity.economy) continue;
@@ -43,7 +45,8 @@ export function tickEconomy(state: SimulationState): EconomyTickResult {
     const interestCost = polity.economy.debt * polity.economy.annualInterestRate / 12;
     const fiscalBalance = taxRevenue - programSpending - interestCost;
 
-    let nextTreasury = polity.capacities.treasury + fiscalBalance;
+    const treasuryBefore = polity.capacities.treasury;
+    let nextTreasury = treasuryBefore + fiscalBalance;
     let nextDebt = polity.economy.debt;
     let debtIssued = 0;
     if (nextTreasury < 0) {
@@ -66,6 +69,7 @@ export function tickEconomy(state: SimulationState): EconomyTickResult {
       ...nextState,
       polities: { ...nextState.polities, [polityId]: nextPolity },
     };
+    polityCapacityDelta[polityId] = { treasury: nextTreasury - treasuryBefore };
 
     ledgerEntries.push(makeLedgerEntry(
       { ...nextState, ledger: [...(nextState.ledger ?? []), ...ledgerEntries] },
@@ -91,5 +95,5 @@ export function tickEconomy(state: SimulationState): EconomyTickResult {
     ));
   }
 
-  return { state: nextState, ledgerEntries };
+  return { state: nextState, ledgerEntries, polityCapacityDelta };
 }
