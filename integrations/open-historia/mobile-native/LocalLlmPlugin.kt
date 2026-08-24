@@ -34,6 +34,11 @@ class LocalLlmPlugin : Plugin() {
         return File(modelsDir(), safe)
     }
 
+    private fun reject(call: PluginCall, fallback: String, error: Throwable) {
+        val exception = error as? Exception ?: RuntimeException(error)
+        call.reject(error.message ?: fallback, exception)
+    }
+
     @PluginMethod
     fun status(call: PluginCall) {
         val state = engine.state.value
@@ -95,7 +100,7 @@ class LocalLlmPlugin : Plugin() {
                 out.put("bytes", destination.length())
                 call.resolve(out)
             } catch (error: Throwable) {
-                call.reject(error.message ?: "Model download failed", error)
+                reject(call, "Model download failed", error)
             } finally {
                 busy.set(false)
             }
@@ -118,7 +123,7 @@ class LocalLlmPlugin : Plugin() {
                 out.put("path", file.absolutePath)
                 call.resolve(out)
             } catch (error: Throwable) {
-                call.reject(error.message ?: "Model load failed", error)
+                reject(call, "Model load failed", error)
             } finally {
                 busy.set(false)
             }
@@ -142,7 +147,7 @@ class LocalLlmPlugin : Plugin() {
                 out.put("text", output.toString())
                 call.resolve(out)
             } catch (error: Throwable) {
-                call.reject(error.message ?: "Generation failed", error)
+                reject(call, "Generation failed", error)
             } finally {
                 busy.set(false)
             }
@@ -158,7 +163,7 @@ class LocalLlmPlugin : Plugin() {
             out.put("ready", false)
             call.resolve(out)
         } catch (error: Throwable) {
-            call.reject(error.message ?: "Model unload failed", error)
+            reject(call, "Model unload failed", error)
         }
     }
 
