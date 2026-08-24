@@ -1,0 +1,74 @@
+name: Android Native LLM APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, "feat/**"]
+    paths:
+      - "src/sim/ai/capacitorLocalClient.ts"
+      - "integrations/open-historia/mobile-native/**"
+      - "integrations/open-historia/src/Game/HardSim/**"
+      - "scripts/integrate-native-llm.mjs"
+      - "scripts/integrate-open-historia.mjs"
+      - ".github/workflows/android-native-llm.yml"
+
+jobs:
+  build-native-apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Checkout Historia HardSim
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Setup Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android native toolchain
+        run: |
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager "platforms;android-36" "build-tools;36.0.0" "ndk;29.0.13113456" "cmake;3.31.6"
+
+      - name: Install HardSim dependencies
+        run: npm install
+
+      - name: Checkout Open Historia
+        run: git clone --depth 1 https://github.com/Open-Historia/open-historia.git open-historia
+
+      - name: Integrate HardSim
+        run: node scripts/integrate-open-historia.mjs ./open-historia
+
+      - name: Integrate embedded llama.cpp runtime
+        run: node scripts/integrate-native-llm.mjs ./open-historia
+
+      - name: Verify integrated web build
+        working-directory: open-historia
+        run: |
+          npm install
+          npm run build
+
+      - name: Build embedded-runtime Android APK
+        working-directory: open-historia/mobile
+        run: |
+          npm install
+          npx cap sync android
+          chmod +x android/gradlew
+          cd android
+          ./gradlew assembleDebug
+
+      - name: Upload embedded-runtime APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: historia-hardsim-android-native-llm-debug
+          path: open-historia/mobile/android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
