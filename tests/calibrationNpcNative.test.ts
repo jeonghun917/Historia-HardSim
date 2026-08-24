@@ -41,6 +41,37 @@ describe("scenario calibration", () => {
     expect(state.polities.B.capacities.treasury).toBe(777);
     expect(state.polities.A.controlledRegions).toHaveLength(4);
   });
+
+  it("applies civil calibration after map scaling and before explicit polity overrides", () => {
+    const state = bootstrapFromOpenHistoriaWorld({
+      ownerCodes: ["AAA", "BBB"],
+      hardSimSeed: {
+        profile: "modern",
+        civilCalibration: {
+          AAA: {
+            year: 2024,
+            population: 100_000_000,
+            gdpCurrentUsd: 5_000_000_000_000,
+            source: "fixture",
+          },
+          BBB: {
+            year: 2024,
+            population: 10_000_000,
+            gdpCurrentUsd: 500_000_000_000,
+            source: "fixture",
+          },
+        },
+        polities: {
+          BBB: { capacities: { treasury: 321 } as never },
+        },
+      },
+    }, "2024-01-01");
+
+    expect(state.polities.AAA.demography?.population).toBe(100_000_000);
+    expect(state.polities.BBB.demography?.population).toBe(10_000_000);
+    expect(state.polities.AAA.economy!.gdp).toBeGreaterThan(state.polities.BBB.economy!.gdp);
+    expect(state.polities.BBB.capacities.treasury).toBe(321);
+  });
 });
 
 function npcState(): SimulationState {
