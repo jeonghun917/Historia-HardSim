@@ -15,7 +15,10 @@ export interface ActionRequest {
   target?: string;
   requiredTechnologies?: string[];
   minimumCapacities?: Partial<CapacityPool>;
+  /** Throughput/capacity reserved for the lifetime of the project, per unit of scale. */
   capacityCost?: Partial<CapacityPool>;
+  /** Stock resources permanently consumed when the project is created, per unit of scale. */
+  upfrontCost?: Partial<CapacityPool>;
   metadata?: Record<string, unknown>;
 }
 
