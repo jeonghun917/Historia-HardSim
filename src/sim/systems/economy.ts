@@ -34,7 +34,13 @@ export function tickEconomy(state: SimulationState): EconomyTickResult {
     const logisticsFactor = polity.logisticsState
       ? clamp(available.logistics / Math.max(1, polity.logisticsState.networkCapacity), 0, 1)
       : 1;
-    const bottleneckFactor = Math.min(industryFactor, logisticsFactor);
+    const energyFactor = polity.resources && polity.resources.energyDemandMonthly > 0
+      ? clamp(polity.resources.energyProductionMonthly / polity.resources.energyDemandMonthly, 0, 1)
+      : 1;
+    const materialsFactor = polity.resources && polity.resources.materialDemandMonthly > 0
+      ? clamp(polity.resources.materialStock / polity.resources.materialDemandMonthly, 0, 1)
+      : 1;
+    const bottleneckFactor = Math.min(industryFactor, logisticsFactor, energyFactor, materialsFactor);
 
     const effectiveAnnualGrowthRate = polity.economy.baseAnnualGrowthRate * bottleneckFactor;
     const monthlyGrowthRate = monthlyRateFromAnnual(effectiveAnnualGrowthRate);
@@ -58,11 +64,7 @@ export function tickEconomy(state: SimulationState): EconomyTickResult {
     const nextPolity = {
       ...polity,
       capacities: { ...polity.capacities, treasury: nextTreasury },
-      economy: {
-        ...polity.economy,
-        gdp: nextGdp,
-        debt: nextDebt,
-      },
+      economy: { ...polity.economy, gdp: nextGdp, debt: nextDebt },
     };
 
     nextState = {
@@ -90,6 +92,8 @@ export function tickEconomy(state: SimulationState): EconomyTickResult {
           debtAfter: nextDebt,
           industryFactor,
           logisticsFactor,
+          energyFactor,
+          materialsFactor,
         },
       },
     ));
