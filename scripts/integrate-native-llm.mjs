@@ -129,16 +129,49 @@ await writeFile(appBuildPath, appBuild, "utf8");
 
 const mainActivityPath = resolve(packageDir, "MainActivity.java");
 let mainActivity = await readFile(mainActivityPath, "utf8");
+if (!mainActivity.includes("import android.view.View;")) {
+  mainActivity = mainActivity.replace(
+    "import android.os.Bundle;",
+    "import android.os.Bundle;\nimport android.view.View;",
+  );
+}
 if (!mainActivity.includes("registerPlugin(LocalLlmPlugin.class)")) {
   mainActivity = mainActivity.replace(
     "super.onCreate(savedInstanceState);",
     "registerPlugin(LocalLlmPlugin.class);\n        super.onCreate(savedInstanceState);",
   );
-  await writeFile(mainActivityPath, mainActivity, "utf8");
 }
+if (!mainActivity.includes("hideSystemBars()")) {
+  mainActivity = mainActivity.replace(
+    "public class MainActivity extends BridgeActivity {",
+    `public class MainActivity extends BridgeActivity {
+    private void hideSystemBars() {
+        getWindow().getDecorView().setSystemUiVisibility(
+            View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                | View.SYSTEM_UI_FLAG_FULLSCREEN
+                | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                | View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+        );
+    }
+
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        if (hasFocus) hideSystemBars();
+    }`,
+  );
+  mainActivity = mainActivity.replace(
+    "super.onCreate(savedInstanceState);",
+    "super.onCreate(savedInstanceState);\n        hideSystemBars();",
+  );
+}
+await writeFile(mainActivityPath, mainActivity, "utf8");
 
 console.log("Embedded LocalLlm integration installed:");
 console.log(`  llama.cpp AAR: ${resolve(appLibs, "llama-android.aar")}`);
 console.log(`  Capacitor plugin: ${resolve(packageDir, "LocalLlmPlugin.kt")}`);
 console.log("  Android baseline: arm64-v8a / minSdk 33 / compileSdk 36 / targetSdk 36 / JVM 21");
+console.log("  UI mode: immersive fullscreen (status/navigation bars hidden)");
 console.log("The app can now download, load and run GGUF models without Termux.");
