@@ -4,6 +4,7 @@ import { tickEconomy } from "../systems/economy";
 import { tickResources } from "../systems/resources";
 import { tickDemography } from "../systems/demography";
 import { tickResearch } from "../systems/research";
+import { tickMilitary } from "../systems/military";
 import { applyProjectCompletionEffect } from "../systems/projectEffects";
 
 function addOneMonth(isoDate: string): string {
@@ -107,6 +108,10 @@ export function tickMonth(state: SimulationState): TickResult {
   const researchResult = tickResearch(workingState);
   workingState = appendLedgerEntries(researchResult.state, researchResult.ledgerEntries);
   ledgerEntries.push(...researchResult.ledgerEntries);
+
+  const militaryResult = tickMilitary(workingState);
+  workingState = appendLedgerEntries(militaryResult.state, militaryResult.ledgerEntries);
+  ledgerEntries.push(...militaryResult.ledgerEntries);
 
   const economyResult = tickEconomy(workingState);
   workingState = appendLedgerEntries(economyResult.state, economyResult.ledgerEntries);
