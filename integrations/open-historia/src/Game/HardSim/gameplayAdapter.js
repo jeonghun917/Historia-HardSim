@@ -42,10 +42,28 @@ function makeEvent(date, title, description, playerRelated = true, index = 0) {
   };
 }
 
-function runtimeKey(game) {
+function stableHash(value) {
+  const text = String(value || "");
+  let hash = 2166136261;
+  for (let i = 0; i < text.length; i += 1) {
+    hash ^= text.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0).toString(36);
+}
+
+function runtimeKey(game, world) {
   const country = String(game?.country || "unknown");
   const start = String(game?.startDate || game?.gameDate || "unknown");
-  return `historia-hardsim-state-v1:${country}:${start}`;
+  const scenarioMaterial = [
+    world?.startingTimelineText,
+    world?.simulationRules,
+    world?.notes,
+    world?.hardSimSeed?.profile,
+    Object.keys(world?.polityOverrides || {}).sort().join(","),
+  ].map((value) => String(value || "")).join("|");
+  const scenario = stableHash(scenarioMaterial || `${country}|${start}`);
+  return `historia-hardsim-state-v2:${scenario}:${country}:${start}`;
 }
 
 export const simulateTimelineJump = async ({ days, mode = "jump", signal } = {}) => {
@@ -58,7 +76,7 @@ export const simulateTimelineJump = async ({ days, mode = "jump", signal } = {})
   const baseWorld = normalizeWorldState(bundle.world);
   const actions = normalizeActions(bundle.actions);
   const targetDate = addDays(baseGame.gameDate, safeDays);
-  const hardSim = createHardSimRuntime({ storageKey: runtimeKey(baseGame) });
+  const hardSim = createHardSimRuntime({ storageKey: runtimeKey(baseGame, baseWorld) });
 
   const generatedEvents = [];
   let eventIndex = 0;
