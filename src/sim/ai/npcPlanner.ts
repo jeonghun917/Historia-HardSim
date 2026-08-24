@@ -1,6 +1,7 @@
 import type { ActionRequest } from "../actions/types";
 import { validateAction } from "../actions/validator";
 import type { PolityId, SimulationState } from "../core/types";
+import type { DiplomaticAction } from "../systems/diplomacy";
 
 function candidateActions(state: SimulationState, actor: PolityId): ActionRequest[] {
   const polity = state.polities[actor];
@@ -70,4 +71,53 @@ export function chooseNpcAction(state: SimulationState, actor: PolityId): Action
     return { ...candidate, requestedScale: validation.feasibleScale };
   }
   return undefined;
+}
+
+export interface NpcDiplomaticChoice {
+  counterpart: PolityId;
+  action: DiplomaticAction;
+  intensity: number;
+}
+
+export function chooseNpcDiplomaticAction(
+  state: SimulationState,
+  actor: PolityId,
+): NpcDiplomaticChoice | undefined {
+  const polity = state.polities[actor];
+  if (!polity) return undefined;
+
+  const relations = Object.entries(polity.diplomacy ?? {});
+  for (const [counterpart, relation] of relations) {
+    if (!state.polities[counterpart]) continue;
+    if (relation.tension > 0.7) {
+      return { counterpart, action: "reduce_tension", intensity: 0.15 };
+    }
+    if (relation.trust > 0.7 && relation.treatyCommitment < 0.5) {
+      return { counterpart, action: "formalize_cooperation", intensity: 0.1 };
+    }
+    if (relation.tradeDependence < 0.3 && relation.tension < 0.5) {
+      return { counterpart, action: "expand_trade", intensity: 0.1 };
+    }
+  }
+
+  return undefined;
+}
+
+export function chooseNpcFrontPriority(state: SimulationState, actor: PolityId): string | undefined {
+  let bestId: string | undefined;
+  let bestScore = -Infinity;
+  for (const front of Object.values(state.fronts ?? {})) {
+    if (front.attacker !== actor && front.defender !== actor) continue;
+    const rolePressure = front.attacker === actor ? front.pressure : 1 - front.pressure;
+    const regionValue = front.regionIds.reduce(
+      (sum, regionId) => sum + (state.regions?.[regionId]?.strategicValue ?? 1),
+      0,
+    );
+    const score = regionValue * 0.5 + front.supplyFactor * 0.3 + rolePressure * 0.2;
+    if (score > bestScore) {
+      bestScore = score;
+      bestId = front.id;
+    }
+  }
+  return bestId;
 }
