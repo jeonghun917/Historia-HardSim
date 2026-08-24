@@ -1,4 +1,5 @@
 import {
+  CapacitorLocalLlmClient,
   OpenAiCompatibleLocalClient,
   advanceMonths,
   applyDiplomaticAction,
@@ -25,7 +26,15 @@ function writeJsonStorage(key, value) {
   globalThis.localStorage?.setItem(key, JSON.stringify(value));
 }
 
+export function getNativeLlmPlugin() {
+  return globalThis.Capacitor?.Plugins?.LocalLlm ?? null;
+}
+
 function createLlmClient(options = {}) {
+  if (options.preferNative !== false && getNativeLlmPlugin()) {
+    return new CapacitorLocalLlmClient(options.predictLength ?? 768);
+  }
+
   const endpoint = options.endpoint
     || globalThis.localStorage?.getItem("openai_compatible_endpoint")
     || "http://127.0.0.1:11434/v1";
@@ -98,5 +107,6 @@ export function createHardSimRuntime(options = {}) {
     runCommand,
     jump,
     runNpcTurn,
+    llm,
   };
 }
