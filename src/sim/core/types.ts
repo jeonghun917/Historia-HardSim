@@ -33,6 +33,26 @@ export interface LogisticsState {
   utilization: number;
 }
 
+export interface ResourceState {
+  energyProductionMonthly: number;
+  energyDemandMonthly: number;
+  materialProductionMonthly: number;
+  materialDemandMonthly: number;
+  materialStock: number;
+}
+
+export interface DemographyState {
+  population: number;
+  workingAgeShare: number;
+  laborParticipationRate: number;
+  annualPopulationGrowthRate: number;
+}
+
+export interface ResearchState {
+  knowledge: number;
+  monthlyKnowledgeGain: number;
+}
+
 export interface PolityState {
   id: PolityId;
   capacities: CapacityPool;
@@ -41,6 +61,9 @@ export interface PolityState {
   economy?: EconomyState;
   industryState?: IndustryState;
   logisticsState?: LogisticsState;
+  resources?: ResourceState;
+  demography?: DemographyState;
+  researchState?: ResearchState;
 }
 
 export interface ProjectState {
@@ -69,6 +92,11 @@ export interface LedgerEntry {
     | "resource_consumed"
     | "project_blocked"
     | "economy_tick"
+    | "resource_tick"
+    | "demography_tick"
+    | "research_tick"
+    | "policy_changed"
+    | "technology_unlocked"
     | "system_effect";
   actor: PolityId;
   projectId?: ProjectId;
