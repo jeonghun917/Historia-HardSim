@@ -11,6 +11,15 @@ on:
       - "scripts/integrate-native-llm.mjs"
       - "scripts/integrate-open-historia.mjs"
       - ".github/workflows/android-native-llm.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "src/sim/ai/capacitorLocalClient.ts"
+      - "integrations/open-historia/mobile-native/**"
+      - "integrations/open-historia/src/Game/HardSim/**"
+      - "scripts/integrate-native-llm.mjs"
+      - "scripts/integrate-open-historia.mjs"
+      - ".github/workflows/android-native-llm.yml"
 
 jobs:
   build-native-apk:
