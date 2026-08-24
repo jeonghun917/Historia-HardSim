@@ -10,6 +10,14 @@ on:
       - "scripts/integrate-open-historia.mjs"
       - "android/**"
       - ".github/workflows/android-apk.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "integrations/open-historia/**"
+      - "scripts/integrate-open-historia.mjs"
+      - "android/**"
+      - ".github/workflows/android-apk.yml"
 
 jobs:
   build-apk:
