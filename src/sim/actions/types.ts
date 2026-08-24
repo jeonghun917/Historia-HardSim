@@ -6,6 +6,9 @@ export type ActionKind =
   | "energy_expansion"
   | "materials_expansion"
   | "research_program"
+  | "military_equipment_production"
+  | "military_supply_production"
+  | "military_training"
   | "fiscal_policy"
   | "generic_project";
 
