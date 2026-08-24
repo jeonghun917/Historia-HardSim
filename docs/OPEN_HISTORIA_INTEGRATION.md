@@ -26,10 +26,11 @@ Open Historia UI command
 2. Structured LLM output must enter HardSim through `validateIntentEnvelope()`.
 3. `actor` is supplied by game authority and overwrites any actor proposed by the model.
 4. Open Historia-generated payloads must never directly mutate HardSim state.
-5. Project rewards/completion effects come only from `projectEffects.ts` or other deterministic systems.
+5. Project rewards/completion effects come only from deterministic HardSim systems.
 6. Time jumps call `advanceMonths()`; they do not ask the LLM to invent elapsed-world outcomes.
-7. Combat calls `resolveCombat()` and sends the resulting ledger/diff to narration; narration cannot change losses or winners.
-8. The Open Historia adapter is one-way: `SimulationState + WorldDiff -> presentation patch`.
+7. Combat calls `resolveCombat()`; territory transfer calls `resolveCampaignBattle()`.
+8. NPCs use the same `validateAction()` path as the player.
+9. The Open Historia adapter is one-way: `SimulationState + WorldDiff -> presentation patch`.
 
 ## Suggested Open Historia patch points
 ### Structured player actions
@@ -45,6 +46,12 @@ Replace LLM-authored physical/economic state transitions with:
 advanceMonths(hardSimState, months)
 ```
 The LLM may still generate narrative summaries from the resulting authoritative diff.
+
+### Campaign actions
+Map-level attacks should call `resolveCampaignBattle()` with the target region. The Open Historia map changes controller only after the authoritative HardSim region state changes.
+
+### NPC turns
+Use `chooseNpcAction()` as the deterministic fallback. A future LLM may rank candidate actions, but the selected action still passes `validateAction()` and the same project engine.
 
 ### Diplomacy/advisor chat
 Keep existing free-form Open Historia chat paths. They are advisory and need no authoritative state write unless the user chooses a concrete action, at which point that action re-enters HardSim validation.
@@ -64,7 +71,6 @@ Open Historia already exposes an OpenAI-compatible provider path. HardSim also s
 ## Not yet implemented in this repository
 - direct source-code patch against Open Historia itself;
 - Android inference runtime embedding;
-- territory/front/campaign layer;
-- diplomacy AI/NPC planner.
+- richer diplomacy/front-line AI beyond the deterministic NPC baseline.
 
-Those are integration/application layers, not blockers for the deterministic core authority model.
+Those are application/integration layers rather than missing authority rules in the simulation core.
