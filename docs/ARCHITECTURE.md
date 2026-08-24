@@ -82,6 +82,11 @@ Examples: missing prerequisite technology, insufficient minimum industrial capab
 ### CapacityConstraint
 The action can execute only up to a computable maximum scale. The validator may return `partial` with the maximum feasible allocation.
 
+Validation uses **currently unreserved capacity**, not headline capacity. An active project therefore prevents another project from reusing the same industrial, logistical, administrative, research, or other reserved throughput.
+
+### Upfront stock consumption
+Projects may also specify resources that are permanently consumed when the project starts. These are distinct from reserved throughput. For example, treasury/material stock can be spent while industrial capacity remains occupied only for the project's lifetime.
+
 ### Uncertainty
 Only after an action is valid may seeded randomness alter efficiency, completion time, discovery, failure, or other explicitly modeled uncertain outcomes.
 
@@ -90,21 +95,25 @@ Only after an action is valid may seeded randomness alter efficiency, completion
 Large actions become projects with:
 
 - start date;
-- target completion date;
-- reserved/consumed capacities;
+- duration and elapsed months;
+- executable scale;
+- reserved capacities;
+- consumed upfront resources;
 - progress;
-- prerequisites;
-- dependencies;
 - status;
 - causal ledger references.
 
-A time jump advances progress; it does not instantly materialize requested outcomes.
+A time jump advances progress; it does not instantly materialize requested outcomes. Completed or cancelled projects stop reserving throughput automatically.
 
-## 8. Determinism
+## 8. Causal ledger
+
+Every authoritative transition must be attributable. The current ledger records project creation, upfront resource consumption, monthly progress and completion. Future economic/industrial/logistics systems must append their own causal entries rather than silently mutating state.
+
+## 9. Determinism
 
 Given identical initial state, action sequence, ruleset version and RNG seed, the simulation must produce identical authoritative results.
 
-## 9. Open Historia integration boundary
+## 10. Open Historia integration boundary
 
 The integration adapter should be one-way at first:
 
@@ -112,17 +121,39 @@ The integration adapter should be one-way at first:
 
 Open Historia or an LLM should never directly write authoritative HardSim state.
 
-## 10. Initial module layout
+## 11. Current module layout
 
 ```text
 src/sim/
-  core/
-  state/
   actions/
-  systems/
+    types.ts
+    validator.ts
+  core/
+    types.ts
+    ledger.ts
+    tick.ts
   projects/
+    capacityAccounting.ts
+    planner.ts
+  state/
+  systems/
   ai/
   adapters/
 ```
 
-The first implementation milestone is not historical realism. It is enforcement: commands cannot create outcomes the modeled state cannot support.
+## 12. Milestone status
+
+Implemented in the initial simulation-core milestone:
+
+- typed Action DSL;
+- hard prerequisite validation;
+- partial execution by feasible scale;
+- active-project capacity reservation;
+- upfront stock-resource consumption;
+- deterministic project creation;
+- monthly simulation ticks;
+- automatic reservation release on completion;
+- causal ledger;
+- tests and CI.
+
+The next milestone is the first rules-driven world model: economy/budget, industrial capacity and logistics. Completion effects must come from those rulesets, not arbitrary LLM-provided metadata.
