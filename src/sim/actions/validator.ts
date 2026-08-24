@@ -1,5 +1,20 @@
-import type { SimulationState } from "../core/types";
+import type { CapacityPool, SimulationState } from "../core/types";
+import { getAvailableCapacities } from "../projects/capacityAccounting";
 import type { ActionRequest, ConstraintFailure, ValidationResult } from "./types";
+
+function capScaleByCost(
+  feasibleScale: number,
+  available: CapacityPool,
+  cost: Partial<CapacityPool> | undefined,
+): number {
+  for (const [key, unitCost] of Object.entries(cost ?? {})) {
+    const capacity = key as keyof CapacityPool;
+    const costPerScale = unitCost ?? 0;
+    if (costPerScale <= 0) continue;
+    feasibleScale = Math.min(feasibleScale, available[capacity] / costPerScale);
+  }
+  return feasibleScale;
+}
 
 export function validateAction(
   state: SimulationState,
@@ -16,6 +31,14 @@ export function validateAction(
     };
   }
 
+  if (!Number.isFinite(request.requestedScale) || request.requestedScale <= 0) {
+    return {
+      status: "rejected",
+      feasibleScale: 0,
+      failures: [{ code: "INVALID_SCALE", message: "requestedScale must be a positive finite number." }],
+    };
+  }
+
   for (const technology of request.requiredTechnologies ?? []) {
     if (!polity.technologies.includes(technology)) {
       failures.push({
@@ -27,12 +50,12 @@ export function validateAction(
   }
 
   for (const [key, minimum] of Object.entries(request.minimumCapacities ?? {})) {
-    const capacity = key as keyof typeof polity.capacities;
+    const capacity = key as keyof CapacityPool;
     const required = minimum ?? 0;
     if (polity.capacities[capacity] < required) {
       failures.push({
         code: "MINIMUM_CAPACITY_NOT_MET",
-        message: `${capacity} requires at least ${required}; available ${polity.capacities[capacity]}`,
+        message: `${capacity} requires at least ${required}; total capacity ${polity.capacities[capacity]}`,
         field: capacity,
       });
     }
@@ -42,16 +65,14 @@ export function validateAction(
     return { status: "rejected", feasibleScale: 0, failures };
   }
 
-  let feasibleScale = request.requestedScale;
-
-  for (const [key, unitCost] of Object.entries(request.capacityCost ?? {})) {
-    const capacity = key as keyof typeof polity.capacities;
-    const costPerScale = unitCost ?? 0;
-    if (costPerScale <= 0) continue;
-
-    const maxByCapacity = polity.capacities[capacity] / costPerScale;
-    feasibleScale = Math.min(feasibleScale, maxByCapacity);
+  const available = getAvailableCapacities(state, request.actor);
+  if (!available) {
+    return { status: "rejected", feasibleScale: 0, failures: [{ code: "UNKNOWN_ACTOR", message: `Unknown polity: ${request.actor}` }] };
   }
+
+  let feasibleScale = request.requestedScale;
+  feasibleScale = capScaleByCost(feasibleScale, available, request.capacityCost);
+  feasibleScale = capScaleByCost(feasibleScale, available, request.upfrontCost);
 
   if (feasibleScale <= 0) {
     return {
@@ -67,7 +88,7 @@ export function validateAction(
       feasibleScale,
       failures: [{
         code: "CAPACITY_LIMIT",
-        message: `Requested scale ${request.requestedScale} exceeds current capacity; maximum feasible scale is ${feasibleScale}.`,
+        message: `Requested scale ${request.requestedScale} exceeds currently unreserved capacity; maximum feasible scale is ${feasibleScale}.`,
       }],
     };
   }
