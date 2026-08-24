@@ -31,12 +31,25 @@ Player command
 - constrained LLM intent/narration boundary;
 - actor-identity enforcement and metadata whitelist;
 - era-aware calibration profiles with region-scale bootstrap and per-scenario `hardSimSeed` overrides;
+- public civil-data calibration for population/GDP;
 - Open Historia bootstrap + one-way presentation adapter;
 - automated Open Historia integration installer;
 - OpenAI-compatible localhost LLM client;
 - Capacitor native LLM client;
 - embedded Android `llama.cpp` integration path with in-app GGUF download/load UI;
 - GitHub Actions library, normal Android and native-LLM Android builds.
+
+## Scenario calibration
+
+Broad era defaults are selected from the scenario date, then scaled from the map. Scenario authors can provide explicit `hardSimSeed` overrides on top.
+
+For modern civil baselines, the repository includes a World Bank WDI importer:
+
+```sh
+npm run calibration:worldbank -- --year=2024 --countries=USA,KOR,JPN --out=data/calibration/worldbank-2024.json
+```
+
+The generated `civilCalibration` object contains population and GDP inputs that can be placed under `world.hardSimSeed.civilCalibration`. Explicit scenario polity overrides remain the final authority.
 
 ## Open Historia integration
 
