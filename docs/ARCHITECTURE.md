@@ -4,7 +4,7 @@
 Historia HardSim separates language generation from world-state authority. The simulation core is authoritative; LLM output is advisory until converted into a validated action.
 
 ## Authority boundary
-LLM may parse player intent, propose NPC goals, narrate computed outcomes, and summarize causal history. It may not mint resources, override prerequisites, choose arbitrary completion times, directly mutate authoritative state, bypass validation, define project rewards, or decide combat outcomes.
+LLM may parse player intent, propose NPC goals, narrate computed outcomes, and summarize causal history. It may not mint resources, override prerequisites, choose arbitrary completion times, directly mutate authoritative state, bypass validation, define project rewards, decide combat outcomes, or transfer territory.
 
 ## Turn pipeline
 ```text
@@ -41,45 +41,40 @@ Research capacity creates monthly knowledge accumulation. Research projects rese
 Military state is intentionally abstract: active personnel, reserves, mobilized personnel, equipment points, readiness, training, supply stock and monthly supply demand.
 
 ### Mobilization
-Mobilization is capped by three deterministic limits: remaining reserves, configured mobilization ceiling, and the amount of civilian labor that can be removed without crossing the protected labor floor. Mobilized manpower therefore reduces civilian labor capacity.
+Mobilization is capped by remaining reserves, configured mobilization ceiling, and civilian labor that can be removed without crossing the protected labor floor.
 
 ### Military production
-Equipment, supply and training use the same project engine as civilian construction. They reserve industrial/logistics throughput, consume configured stock resources and only produce effects on project completion. Money alone cannot instantly create military capability.
+Equipment, supply and training use the same project engine as civilian construction. They reserve throughput, consume configured stock resources and only produce effects on completion.
 
 ### Supply and readiness
-Each monthly military tick consumes supply subject to available logistics. Insufficient supply or logistics pushes readiness downward; training only partially offsets the constraint.
+Each monthly military tick consumes supply subject to logistics. Insufficient supply or logistics lowers readiness.
 
-### Combat
-Combat resolution reads only authoritative force state. Relative personnel, abstract equipment, readiness and training determine force power and deterministic attrition. The narrator cannot choose a winner or invent losses. Territory-transfer rules are intentionally deferred to a later campaign layer.
+### Combat and campaigns
+Combat reads only authoritative force state. Relative personnel, abstract equipment, readiness and training determine force power and deterministic attrition. Territory can transfer only through the campaign layer after authoritative combat awards the attacker the win.
+
+## NPC rules
+NPC actions use the same typed ActionRequest and `validateAction()` path as the player. The current deterministic baseline planner prioritizes supply/resource shortages and capacity expansion. A future LLM NPC may rank or propose candidates, but execution remains subject to the same validator.
+
+## LLM and Open Historia boundary
+The LLM is restricted to intent compilation and narration. `runPlayerTurn()` forces the actual actor identity, validates the intent and produces authoritative state/diff before narration. `toOpenHistoriaPresentationPatch()` is one-way; Open Historia receives presentation data and has no reverse-write path into HardSim state.
+
+`OpenAiCompatibleLocalClient` targets a standard `/v1/chat/completions` endpoint so local/mobile inference can be swapped without changing simulation authority.
 
 ## Projects
-Large actions have duration, executable scale, reserved capacities, consumed upfront resources, progress and status. A time jump advances projects rather than materializing requested outcomes instantly. Completion effects are ruleset-owned.
+Large actions have duration, executable scale, reserved capacities, consumed upfront resources, progress and status. Completion effects are ruleset-owned.
 
 ## Causal ledger
-Every authoritative transition is attributable: project creation/progress/completion, resource consumption, economy/resource/demography/research/military ticks, mobilization, combat, policy changes, technology unlocks, and system effects all produce ledger entries.
+Every authoritative transition is attributable, including projects, civil-system ticks, military readiness, mobilization, combat, territory transfer, policy changes and technology unlocks.
 
 ## Determinism
 Given identical initial state, action sequence, ruleset version and RNG seed, the simulation must produce identical authoritative results.
-
-## Open Historia boundary
-Initial integration remains one-way:
-`SimulationState -> validated WorldDiff -> Open Historia presentation/world mutation`
-Open Historia or an LLM must never directly write HardSim authoritative state.
 
 ## Current module layout
 ```text
 src/sim/
   actions/
-    types.ts
-    validator.ts
-    fiscalPolicy.ts
   core/
-    types.ts
-    ledger.ts
-    tick.ts
   projects/
-    capacityAccounting.ts
-    planner.ts
   systems/
     economy.ts
     resources.ts
@@ -87,12 +82,20 @@ src/sim/
     research.ts
     military.ts
     combat.ts
+    campaign.ts
     projectEffects.ts
   adapters/
+    openHistoria.ts
   ai/
+    contracts.ts
+    intentCompiler.ts
+    narrator.ts
+    bridge.ts
+    npcPlanner.ts
+    openAiCompatibleClient.ts
 ```
 
 ## Milestone status
-Implemented: deterministic validation, partial execution, project reservations, upfront consumption, monthly project progression, economy/budget, fiscal policy, industrial/logistics expansion effects, energy/material supply, demography/labor, research/technology progression, abstract military production, mobilization, military supply/readiness and deterministic combat, causal ledger, tests and CI.
+Implemented: deterministic validation, capacity reservation, economy/resources/demography/research, abstract military production/mobilization/supply/readiness/combat, campaign territory transfer, NPC same-rules planner, constrained LLM bridge, one-way Open Historia adapter, local OpenAI-compatible client, causal ledger, tests and CI.
 
-Next major subsystem: Open Historia adapter plus constrained local/mobile LLM intent compilation and narration. A later campaign layer can add territory capture, fronts and diplomacy without changing the authority boundary.
+Remaining application work is primarily direct Open Historia source integration, richer fronts/diplomacy, and Android runtime packaging.
