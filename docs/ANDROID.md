@@ -1,68 +1,69 @@
-# Android / Termux local mode
+# Android local inference
 
-Historia HardSim can run without a paid API by keeping both the game server and an OpenAI-compatible LLM endpoint on the Android device.
+Historia HardSim supports two zero-paid-API Android paths.
 
-## Architecture
+## 1. Compatibility mode
+
+This keeps Open Historia's normal Android compatibility range and uses a localhost OpenAI-compatible endpoint.
 
 ```text
-Android browser / Open Historia thin client
-        -> local Open Historia server
+Open Historia Android client
         -> HardSim runtime
-        -> http://127.0.0.1:11434/v1
-        -> local llama.cpp-compatible server
-        -> local GGUF model
+        -> localhost OpenAI-compatible endpoint
+        -> local model runtime
 ```
 
-No cloud provider is required by this mode. The model file is intentionally not bundled in this repository; users must choose a model whose license and device requirements suit them.
+The existing Termux helper remains available under `android/termux/` for this mode.
 
-## Requirements
+## 2. Embedded native mode
 
-- Termux or an equivalent Android shell environment.
-- Node.js for Open Historia.
-- A `llama-server` compatible binary available in `PATH` (or set `LLAMA_SERVER_BIN`).
-- A local GGUF model file.
-- An Open Historia checkout that has been patched with `scripts/integrate-open-historia.mjs`.
-
-## Environment
-
-```sh
-export HARDSIM_MODEL=/path/to/model.gguf
-export OPEN_HISTORIA_DIR=/path/to/open-historia
-export HARDSIM_LLM_PORT=11434
-export HARDSIM_CONTEXT=4096
-export HARDSIM_THREADS=4
-```
-
-Optional: override the web-server command if the Open Historia checkout uses a different launcher:
-
-```sh
-export HARDSIM_WEB_CMD='node server/server.js'
-```
-
-## Start
-
-From the Historia HardSim checkout:
-
-```sh
-bash android/termux/start-stack.sh
-```
-
-The script starts the local model server and Open Historia server, prints their log locations, and shuts both down on Ctrl+C.
-
-In Open Historia provider settings use the OpenAI-compatible provider with endpoint:
+The native path removes the localhost/Termux requirement from inference itself:
 
 ```text
-http://127.0.0.1:11434/v1
+Open Historia Capacitor WebView
+        -> HardSim CapacitorLocalLlmClient
+        -> LocalLlm Capacitor plugin
+        -> upstream llama.cpp Android InferenceEngine
+        -> app-private GGUF model
 ```
 
-and the model id exposed by the local server.
+The integration command is:
 
-## Performance policy
+```sh
+node scripts/integrate-open-historia.mjs /path/to/open-historia
+node scripts/integrate-native-llm.mjs /path/to/open-historia
+```
 
-HardSim is designed so the local model does language work only: intent parsing and narration. Economy, resources, projects, technology, diplomacy, fronts and combat state are computed by deterministic TypeScript rules. This is why a small local model is viable.
+The second installer:
 
-For constrained phones, reduce context size first. The simulation core itself is lightweight compared with local inference.
+- checks out or accepts a local `llama.cpp` source tree;
+- builds the upstream `examples/llama.android/lib` release AAR;
+- copies that AAR into the Open Historia Android app;
+- installs the `LocalLlm` Capacitor plugin;
+- registers the plugin from `MainActivity`;
+- raises only this native build to the upstream Android requirement (API 33+, compile/target SDK 36);
+- enables the in-app model manager.
 
-## Current packaging boundary
+## In-app model manager
 
-This mode is phone-only and offline after the required code/model assets are present, but it runs the model as a local process rather than embedding inference directly into one APK. A future native wrapper can embed the same OpenAI-compatible contract without changing HardSim's authority boundary.
+When the native plugin exists, Open Historia gets a small `Local LLM` control. It can:
+
+- list GGUF files already stored in the app;
+- download a GGUF file from an HTTPS URL into app-private storage;
+- load a selected model;
+- report runtime/model status.
+
+Model weights are deliberately not bundled with Historia HardSim. This keeps the repository small and avoids coupling the app to a particular model license or device memory requirement.
+
+## Authority boundary
+
+The local model only performs constrained language tasks. HardSim remains authoritative for the simulation state, project validation, resource accounting, time progression and causal ledger. Switching between localhost inference and embedded inference does not change the simulation rules.
+
+## Build verification
+
+Two Android workflows exist:
+
+- `Android APK`: normal Open Historia/HardSim integration and Capacitor APK build.
+- `Android Native LLM APK`: additionally installs Android SDK 36, NDK 29 and CMake 3.31.6, builds the current upstream llama.cpp Android AAR, injects the native plugin, verifies the integrated web build and produces a native-LLM debug APK artifact.
+
+The native path currently targets Android 13+ because that is the minimum SDK required by the upstream Android library at integration time.
